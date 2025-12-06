@@ -520,6 +520,56 @@ function migrateOldRecords() {
     }
 }
 
+// تصدير نسخة احتياطية
+function exportBackup() {
+    const backupData = {
+        version: 1,
+        exportDate: new Date().toISOString(),
+        data: data
+    };
+    
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `نسخة_احتياطية_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// استيراد نسخة احتياطية
+function importBackup(input) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const backup = JSON.parse(e.target.result);
+            
+            if (!backup.data || !backup.data.classes) {
+                throw new Error('ملف غير صالح');
+            }
+            
+            if (!confirm('سيتم استبدال جميع البيانات الحالية. هل أنت متأكد؟')) {
+                input.value = '';
+                return;
+            }
+            
+            data = backup.data;
+            saveData();
+            updateClassSelects();
+            input.value = '';
+            alert('تم استيراد البيانات بنجاح!');
+            
+        } catch (err) {
+            alert('حدث خطأ في قراءة الملف. تأكد من أنه ملف نسخة احتياطية صحيح.');
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
+}
+
 // تهيئة عند التحميل
 document.addEventListener('DOMContentLoaded', () => {
     // تحديث السجلات القديمة

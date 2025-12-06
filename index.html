@@ -244,6 +244,14 @@
             </div>
 
             <div class="section">
+                <h2>💾 النسخ الاحتياطي</h2>
+                <button class="btn-warning" onclick="exportBackup()">📤 تصدير نسخة احتياطية</button>
+                <input type="file" id="backupFile" accept=".json" onchange="importBackup(this)" style="display:none;">
+                <button class="btn-secondary" onclick="document.getElementById('backupFile').click()" style="margin-top:8px;">📥 استيراد نسخة احتياطية</button>
+                <p style="color:#666;font-size:12px;margin-top:10px;">احفظ نسخة من بياناتك لاستعادتها لاحقاً أو نقلها لجهاز آخر</p>
+            </div>
+
+            <div class="section">
                 <h2>📅 التقرير الشهري التجميعي</h2>
                 <select id="monthlyReportClass">
                     <option value="">-- اختر الفصل --</option>
