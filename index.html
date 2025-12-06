@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23667eea' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>📚</text></svg>">
+    <title>نظام الحضور والغياب</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+        select, input, button {
+            width: 100%;
+            padding: 12px 15px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+        select:focus, input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.02);
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+        .btn-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .btn-secondary { background: #6c757d; }
+        .student-list {
+            display: grid;
+            gap: 10px;
+        }
+        .student-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .student-name {
+            font-weight: bold;
+            color: #333;
+        }
+        .attendance-btns {
+            display: flex;
+            gap: 10px;
+        }
+        .attendance-btns button {
+            width: auto;
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+        .status-present { background: #d4edda; border-right: 4px solid #28a745; }
+        .status-absent { background: #f8d7da; border-right: 4px solid #dc3545; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            background: #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .inline-form {
+            display: flex;
+            gap: 10px;
+        }
+        .inline-form input { flex: 1; }
+        .inline-form button { width: auto; }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .attendance-btns { flex-direction: column; }
+            .inline-form { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📚 نظام الحضور والغياب</h1>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('attendance')">تسجيل الحضور</div>
+            <div class="tab" onclick="showTab('manage')">إدارة الفصول</div>
+            <div class="tab" onclick="showTab('reports')">التقارير</div>
+        </div>
+
+        <!-- تسجيل الحضور -->
+        <div id="attendance" class="tab-content active">
+            <div class="section">
+                <h2>📋 اختر الفصل والحصة</h2>
+                <select id="classSelect" onchange="loadStudents()">
+                    <option value="">-- اختر الفصل --</option>
+                </select>
+                <select id="periodSelect" onchange="loadStudents()">
+                    <option value="1">الحصة الأولى</option>
+                    <option value="2">الحصة الثانية</option>
+                    <option value="3">الحصة الثالثة</option>
+                    <option value="4">الحصة الرابعة</option>
+                    <option value="5">الحصة الخامسة</option>
+                    <option value="6">الحصة السادسة</option>
+                    <option value="7">الحصة السابعة</option>
+                </select>
+            </div>
+            
+            <div class="section" id="studentsSection" style="display:none;">
+                <h2>👥 قائمة الطلاب - <span id="currentDate"></span> - <span id="currentPeriod"></span></h2>
+                <button class="btn-success" onclick="markAllPresent()" style="margin-bottom:15px;">✓ تسجيل الكل حاضرين</button>
+                <div id="studentsList" class="student-list"></div>
+            </div>
+        </div>
+
+        <!-- إدارة الفصول -->
+        <div id="manage" class="tab-content">
+            <div class="section">
+                <h2>📤 استيراد من Excel</h2>
+                <p style="color:#666;font-size:14px;">الملف يجب أن يحتوي على عمودين: <strong>اسم الطالب</strong> و <strong>الفصل</strong></p>
+                <input type="file" id="excelFile" accept=".xlsx,.xls,.csv" onchange="importFromExcel(this)">
+            </div>
+
+            <div class="section">
+                <h2>➕ إضافة فصل جديد</h2>
+                <div class="inline-form">
+                    <input type="text" id="newClassName" placeholder="اسم الفصل (مثال: الصف الأول أ)">
+                    <button onclick="addClass()">إضافة</button>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>➕ إضافة طالب</h2>
+                <select id="classForStudent">
+                    <option value="">-- اختر الفصل --</option>
+                </select>
+                <div class="inline-form">
+                    <input type="text" id="newStudentName" placeholder="اسم الطالب">
+                    <button onclick="addStudent()">إضافة</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🗑️ حذف فصل أو طالب</h2>
+                <select id="classToManage" onchange="loadStudentsToManage()">
+                    <option value="">-- اختر الفصل --</option>
+                </select>
+                <div id="manageList"></div>
+                <button class="btn-danger" onclick="deleteClass()" style="margin-top:10px;">حذف الفصل المحدد</button>
+            </div>
+        </div>
+
+        <!-- التقارير -->
+        <div id="reports" class="tab-content">
+            <div class="section">
+                <h2>📊 عرض السجلات</h2>
+                <select id="reportClass" onchange="loadReport()">
+                    <option value="">-- اختر الفصل --</option>
+                    <option value="all">جميع الفصول</option>
+                </select>
+                <input type="date" id="reportDateFrom" onchange="loadReport()">
+                <input type="date" id="reportDateTo" onchange="loadReport()">
+                <div id="reportTable"></div>
+            </div>
+            
+            <div class="section">
+                <h2>📥 تصدير البيانات</h2>
+                <button class="btn-success" onclick="exportToExcel()">تصدير إلى Excel</button>
+            </div>
+
+            <div class="section">
+                <h2>📅 التقرير الشهري التجميعي</h2>
+                <select id="monthlyReportClass">
+                    <option value="">-- اختر الفصل --</option>
+                </select>
+                <input type="month" id="reportMonth" onchange="loadMonthlyReport()">
+                <button onclick="loadMonthlyReport()">عرض التقرير</button>
+                <div id="monthlyReportTable"></div>
+                <button class="btn-success" onclick="exportMonthlyReport()" style="margin-top:10px;">تصدير التقرير الشهري</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
