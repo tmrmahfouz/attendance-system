@@ -1,5 +1,71 @@
 // نظام الحضور والغياب - JavaScript
 
+// البحث السريع عن طالب
+function searchStudent() {
+    const query = document.getElementById('searchStudent').value.trim().toLowerCase();
+    const container = document.getElementById('searchResults');
+    
+    if (!query || query.length < 2) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const results = [];
+    data.classes.forEach(className => {
+        const students = data.students[className] || [];
+        students.forEach(student => {
+            if (student.toLowerCase().includes(query)) {
+                // حساب الغياب هذا الشهر
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const startDate = `${year}-${month}-01`;
+                const endDate = `${year}-${month}-31`;
+                
+                const absences = data.records.filter(r => 
+                    r.class === className && r.student === student && 
+                    r.status === 'غائب' && r.date >= startDate && r.date <= endDate
+                ).length;
+                
+                results.push({ student, className, absences });
+            }
+        });
+    });
+    
+    if (results.length === 0) {
+        container.innerHTML = '<p style="color:#666;">لا توجد نتائج</p>';
+        return;
+    }
+    
+    container.innerHTML = results.slice(0, 5).map(r => `
+        <div class="student-item" style="margin-bottom:8px;">
+            <div>
+                <span class="student-name">${r.student}</span>
+                <span style="color:#666;font-size:12px;display:block;">${r.className}</span>
+            </div>
+            <span style="background:${r.absences > 0 ? '#dc3545' : '#28a745'};color:white;padding:5px 10px;border-radius:15px;font-size:12px;">
+                ${r.absences} غياب هذا الشهر
+            </span>
+        </div>
+    `).join('');
+}
+
+// الوضع المظلم
+function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+    const isDark = document.body.classList.contains('dark-mode');
+    localStorage.setItem('darkMode', isDark);
+    document.getElementById('darkModeBtn').textContent = isDark ? '☀️' : '🌙';
+}
+
+function loadDarkMode() {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+        document.getElementById('darkModeBtn').textContent = '☀️';
+    }
+}
+
 // تهيئة البيانات
 let data = JSON.parse(localStorage.getItem('attendanceData')) || {
     classes: [],
@@ -14,7 +80,7 @@ function saveData() {
 
 // تحديث قوائم الفصول
 function updateClassSelects() {
-    const selects = ['classSelect', 'classForStudent', 'classToManage', 'reportClass', 'monthlyReportClass'];
+    const selects = ['classSelect', 'classForStudent', 'classToManage', 'reportClass', 'monthlyReportClass', 'alertsClass', 'statsClass', 'editClass'];
     selects.forEach(id => {
         const select = document.getElementById(id);
         if (!select) return;
@@ -126,7 +192,13 @@ function loadStudents() {
         const record = data.records.find(r => 
             r.class === className && r.student === student && r.date === today && r.period === period
         );
-        const statusClass = record ? (record.status === 'حاضر' ? 'status-present' : 'status-absent') : '';
+        let statusClass = '';
+        if (record) {
+            if (record.status === 'حاضر') statusClass = 'status-present';
+            else if (record.status === 'متأخر') statusClass = 'status-late';
+            else if (record.status === 'غائب بعذر') statusClass = 'status-excused';
+            else statusClass = 'status-absent';
+        }
         
         return `
             <div class="student-item ${statusClass}" id="student-${student.replace(/\s/g, '-')}">
@@ -134,6 +206,8 @@ function loadStudents() {
                 <div class="attendance-btns">
                     <button class="btn-success" onclick="markAttendance('${className}', '${student}', 'حاضر')">✓ حاضر</button>
                     <button class="btn-danger" onclick="markAttendance('${className}', '${student}', 'غائب')">✗ غائب</button>
+                    <button class="btn-warning" onclick="markAttendance('${className}', '${student}', 'غائب بعذر')" style="font-size:12px;">📋 بعذر</button>
+                    <button class="btn-secondary" onclick="markAttendance('${className}', '${student}', 'متأخر')" style="font-size:12px;">⏰ متأخر</button>
                 </div>
             </div>
         `;
@@ -242,9 +316,12 @@ function loadReport() {
     
     const getStatusCell = (status) => {
         if (!status) return '<td>-</td>';
-        const color = status === 'حاضر' ? 'green' : 'red';
-        const symbol = status === 'حاضر' ? '✓' : '✗';
-        return `<td style="color:${color};font-weight:bold;">${symbol}</td>`;
+        let color = 'gray', symbol = '-';
+        if (status === 'حاضر') { color = 'green'; symbol = '✓'; }
+        else if (status === 'غائب') { color = 'red'; symbol = '✗'; }
+        else if (status === 'غائب بعذر') { color = '#6c757d'; symbol = '📋'; }
+        else if (status === 'متأخر') { color = '#ffc107'; symbol = '⏰'; }
+        return `<td style="color:${color};font-weight:bold;" title="${status}">${symbol}</td>`;
     };
     
     container.innerHTML = `
@@ -570,8 +647,238 @@ function importBackup(input) {
     reader.readAsText(file);
 }
 
+// تحميل طلاب للتعديل
+function loadEditStudents() {
+    const className = document.getElementById('editClass').value;
+    const studentSelect = document.getElementById('editStudent');
+    
+    studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
+    document.getElementById('editRecordStatus').innerHTML = '';
+    
+    if (!className) return;
+    
+    const students = data.students[className] || [];
+    students.forEach(s => {
+        studentSelect.innerHTML += `<option value="${s}">${s}</option>`;
+    });
+}
+
+// تحميل سجل للتعديل
+function loadEditRecord() {
+    const className = document.getElementById('editClass').value;
+    const student = document.getElementById('editStudent').value;
+    const date = document.getElementById('editDate').value;
+    const period = document.getElementById('editPeriod').value;
+    const container = document.getElementById('editRecordStatus');
+    
+    if (!className || !student || !date) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const record = data.records.find(r => 
+        r.class === className && r.student === student && r.date === date && r.period === period
+    );
+    
+    const currentStatus = record ? record.status : 'لا يوجد سجل';
+    const statusColor = record ? (record.status === 'حاضر' ? 'green' : 'red') : '#666';
+    
+    container.innerHTML = `
+        <div style="padding:15px;background:#f8f9fa;border-radius:10px;margin-bottom:10px;">
+            <strong>الحالة الحالية:</strong> 
+            <span style="color:${statusColor};font-weight:bold;">${currentStatus}</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn-success" onclick="updateRecord('${className}', '${student}', '${date}', '${period}', 'حاضر')">✓ تعديل إلى حاضر</button>
+            <button class="btn-danger" onclick="updateRecord('${className}', '${student}', '${date}', '${period}', 'غائب')">✗ تعديل إلى غائب</button>
+        </div>
+    `;
+}
+
+// تحديث سجل
+function updateRecord(className, student, date, period, status) {
+    // حذف السجل القديم إن وجد
+    data.records = data.records.filter(r => 
+        !(r.class === className && r.student === student && r.date === date && r.period === period)
+    );
+    
+    // إضافة السجل الجديد
+    data.records.push({
+        class: className,
+        student: student,
+        date: date,
+        time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+        period: period,
+        status: status
+    });
+    
+    saveData();
+    loadEditRecord();
+    alert('تم تحديث السجل بنجاح');
+}
+
+// تحميل الإحصائيات
+function loadStats() {
+    const className = document.getElementById('statsClass').value;
+    const container = document.getElementById('statsContainer');
+    
+    if (!className) {
+        container.innerHTML = '';
+        return;
+    }
+    
+    const students = data.students[className] || [];
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const startDate = `${year}-${month}-01`;
+    const endDate = `${year}-${month}-31`;
+    
+    // سجلات الشهر الحالي
+    const monthRecords = data.records.filter(r => 
+        r.class === className && r.date >= startDate && r.date <= endDate
+    );
+    
+    const presentCount = monthRecords.filter(r => r.status === 'حاضر').length;
+    const absentCount = monthRecords.filter(r => r.status === 'غائب').length;
+    const totalRecords = presentCount + absentCount;
+    const attendanceRate = totalRecords > 0 ? ((presentCount / totalRecords) * 100).toFixed(1) : 0;
+    
+    // أكثر الأيام غياباً
+    const dayNames = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+    const absencesByDay = [0, 0, 0, 0, 0, 0, 0];
+    
+    monthRecords.filter(r => r.status === 'غائب').forEach(r => {
+        const day = new Date(r.date).getDay();
+        absencesByDay[day]++;
+    });
+    
+    const maxAbsenceDay = absencesByDay.indexOf(Math.max(...absencesByDay));
+    const worstDay = absencesByDay[maxAbsenceDay] > 0 ? dayNames[maxAbsenceDay] : '-';
+    
+    // الطلاب الأكثر غياباً
+    const studentAbsences = {};
+    students.forEach(s => studentAbsences[s] = 0);
+    monthRecords.filter(r => r.status === 'غائب').forEach(r => {
+        if (studentAbsences[r.student] !== undefined) {
+            studentAbsences[r.student]++;
+        }
+    });
+    
+    const topAbsent = Object.entries(studentAbsences)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .filter(s => s[1] > 0);
+    
+    container.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;">
+            <div style="background:linear-gradient(135deg,#11998e,#38ef7d);color:white;padding:20px;border-radius:15px;text-align:center;">
+                <div style="font-size:2em;font-weight:bold;">${attendanceRate}%</div>
+                <div>نسبة الحضور</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:20px;border-radius:15px;text-align:center;">
+                <div style="font-size:2em;font-weight:bold;">${students.length}</div>
+                <div>عدد الطلاب</div>
+            </div>
+            <div style="background:linear-gradient(135deg,#eb3349,#f45c43);color:white;padding:20px;border-radius:15px;text-align:center;">
+                <div style="font-size:2em;font-weight:bold;">${absentCount}</div>
+                <div>إجمالي الغياب</div>
+            </div>
+        </div>
+        
+        <div style="margin-top:20px;padding:15px;background:#fff3cd;border-radius:10px;">
+            <strong>📅 أكثر يوم غياباً:</strong> ${worstDay} (${absencesByDay[maxAbsenceDay]} غياب)
+        </div>
+        
+        ${topAbsent.length > 0 ? `
+        <div style="margin-top:15px;padding:15px;background:#f8d7da;border-radius:10px;">
+            <strong>🔴 الأكثر غياباً هذا الشهر:</strong>
+            <ul style="margin:10px 0 0 0;padding-right:20px;">
+                ${topAbsent.map(s => `<li>${s[0]} (${s[1]} غياب)</li>`).join('')}
+            </ul>
+        </div>
+        ` : ''}
+    `;
+}
+
+// حفظ إعدادات التنبيهات
+function saveAlertSettings() {
+    const limit = document.getElementById('absenceLimit').value;
+    localStorage.setItem('absenceLimit', limit);
+    alert('تم حفظ الإعدادات');
+    loadAlerts();
+}
+
+// تحميل التنبيهات
+function loadAlerts() {
+    const className = document.getElementById('alertsClass').value;
+    const container = document.getElementById('alertsList');
+    const limit = parseInt(localStorage.getItem('absenceLimit')) || 3;
+    
+    document.getElementById('absenceLimit').value = limit;
+    
+    // حساب الشهر الحالي
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const startDate = `${year}-${month}-01`;
+    const endDate = `${year}-${month}-31`;
+    
+    const atRiskStudents = [];
+    
+    const classesToCheck = className === 'all' ? data.classes : [className];
+    
+    classesToCheck.forEach(cls => {
+        const students = data.students[cls] || [];
+        students.forEach(student => {
+            const absences = data.records.filter(r => 
+                r.class === cls && 
+                r.student === student && 
+                r.status === 'غائب' &&
+                r.date >= startDate && 
+                r.date <= endDate
+            );
+            
+            if (absences.length >= limit) {
+                atRiskStudents.push({
+                    class: cls,
+                    student: student,
+                    count: absences.length,
+                    dates: absences.map(a => a.date).filter((v, i, a) => a.indexOf(v) === i)
+                });
+            }
+        });
+    });
+    
+    // ترتيب حسب عدد الغياب
+    atRiskStudents.sort((a, b) => b.count - a.count);
+    
+    if (atRiskStudents.length === 0) {
+        container.innerHTML = '<p style="color:green;text-align:center;">✅ لا يوجد طلاب تجاوزوا الحد المسموح للغياب هذا الشهر</p>';
+        return;
+    }
+    
+    container.innerHTML = `
+        <p style="color:#dc3545;font-weight:bold;margin-bottom:15px;">⚠️ ${atRiskStudents.length} طالب تجاوزوا ${limit} غيابات هذا الشهر</p>
+        ${atRiskStudents.map(s => `
+            <div class="student-item" style="background:#f8d7da;border-right:4px solid #dc3545;">
+                <div>
+                    <span class="student-name">${s.student}</span>
+                    <span style="color:#666;font-size:12px;display:block;">${s.class}</span>
+                </div>
+                <div style="text-align:left;">
+                    <span style="background:#dc3545;color:white;padding:5px 12px;border-radius:20px;font-weight:bold;">${s.count} غياب</span>
+                </div>
+            </div>
+        `).join('')}
+    `;
+}
+
 // تهيئة عند التحميل
 document.addEventListener('DOMContentLoaded', () => {
+    // تحميل الوضع المظلم
+    loadDarkMode();
+    
     // تحديث السجلات القديمة
     migrateOldRecords();
     
@@ -584,4 +891,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // تعيين الشهر الحالي
     document.getElementById('reportMonth').value = today.substring(0, 7);
+    
+    // تحميل إعدادات التنبيهات
+    const savedLimit = localStorage.getItem('absenceLimit');
+    if (savedLimit) {
+        document.getElementById('absenceLimit').value = savedLimit;
+    }
 });

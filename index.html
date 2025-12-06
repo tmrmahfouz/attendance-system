@@ -102,6 +102,8 @@
         }
         .status-present { background: #d4edda; border-right: 4px solid #28a745; }
         .status-absent { background: #f8d7da; border-right: 4px solid #dc3545; }
+        .status-late { background: #fff3cd; border-right: 4px solid #ffc107; }
+        .status-excused { background: #e2e3f3; border-right: 4px solid #6c757d; }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -151,16 +153,69 @@
             .attendance-btns { flex-direction: column; }
             .inline-form { flex-direction: column; }
         }
+        
+        /* Dark Mode */
+        body.dark-mode {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        }
+        body.dark-mode .container {
+            background: #1f1f1f;
+            color: #e0e0e0;
+        }
+        body.dark-mode h1, body.dark-mode h2 {
+            color: #e0e0e0;
+        }
+        body.dark-mode .section {
+            background: #2d2d2d;
+        }
+        body.dark-mode .section h2 {
+            color: #a0a0ff;
+        }
+        body.dark-mode select, body.dark-mode input {
+            background: #3d3d3d;
+            color: #e0e0e0;
+            border-color: #555;
+        }
+        body.dark-mode .tab {
+            background: #3d3d3d;
+            color: #e0e0e0;
+        }
+        body.dark-mode .student-item {
+            background: #3d3d3d;
+        }
+        body.dark-mode .student-name {
+            color: #e0e0e0;
+        }
+        body.dark-mode table th {
+            background: #4a4a8a;
+        }
+        body.dark-mode table td {
+            border-color: #444;
+        }
+        body.dark-mode tr:hover {
+            background: #3d3d3d;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📚 نظام الحضور والغياب</h1>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h1 style="margin:0;">📚 نظام الحضور والغياب</h1>
+            <button onclick="toggleDarkMode()" style="width:auto;padding:10px 15px;font-size:20px;" id="darkModeBtn">🌙</button>
+        </div>
         
+        <div class="section" style="margin-bottom:15px;padding:15px;">
+            <div class="inline-form">
+                <input type="text" id="searchStudent" placeholder="🔍 بحث سريع عن طالب..." oninput="searchStudent()">
+            </div>
+            <div id="searchResults" style="margin-top:10px;"></div>
+        </div>
+
         <div class="tabs">
             <div class="tab active" onclick="showTab('attendance')">تسجيل الحضور</div>
             <div class="tab" onclick="showTab('manage')">إدارة الفصول</div>
             <div class="tab" onclick="showTab('reports')">التقارير</div>
+            <div class="tab" onclick="showTab('alerts')">⚠️ التنبيهات</div>
         </div>
 
         <!-- تسجيل الحضور -->
@@ -228,6 +283,27 @@
         <!-- التقارير -->
         <div id="reports" class="tab-content">
             <div class="section">
+                <h2>✏️ تعديل سجل سابق</h2>
+                <select id="editClass" onchange="loadEditStudents()">
+                    <option value="">-- اختر الفصل --</option>
+                </select>
+                <select id="editStudent" onchange="loadEditRecord()">
+                    <option value="">-- اختر الطالب --</option>
+                </select>
+                <input type="date" id="editDate" onchange="loadEditRecord()">
+                <select id="editPeriod" onchange="loadEditRecord()">
+                    <option value="1">الحصة الأولى</option>
+                    <option value="2">الحصة الثانية</option>
+                    <option value="3">الحصة الثالثة</option>
+                    <option value="4">الحصة الرابعة</option>
+                    <option value="5">الحصة الخامسة</option>
+                    <option value="6">الحصة السادسة</option>
+                    <option value="7">الحصة السابعة</option>
+                </select>
+                <div id="editRecordStatus" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="section">
                 <h2>📊 عرض السجلات</h2>
                 <select id="reportClass" onchange="loadReport()">
                     <option value="">-- اختر الفصل --</option>
@@ -260,6 +336,35 @@
                 <button onclick="loadMonthlyReport()">عرض التقرير</button>
                 <div id="monthlyReportTable"></div>
                 <button class="btn-success" onclick="exportMonthlyReport()" style="margin-top:10px;">تصدير التقرير الشهري</button>
+            </div>
+        </div>
+    </div>
+
+        <!-- التنبيهات -->
+        <div id="alerts" class="tab-content">
+            <div class="section">
+                <h2>⚙️ إعدادات التنبيهات</h2>
+                <label style="display:block;margin-bottom:10px;color:#666;">الحد الأقصى للغياب قبل التنبيه:</label>
+                <div class="inline-form">
+                    <input type="number" id="absenceLimit" min="1" max="30" value="3" style="width:100px;">
+                    <button onclick="saveAlertSettings()">حفظ</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚨 الطلاب المعرضين للخطر</h2>
+                <select id="alertsClass" onchange="loadAlerts()">
+                    <option value="all">جميع الفصول</option>
+                </select>
+                <div id="alertsList" style="margin-top:15px;"></div>
+            </div>
+
+            <div class="section">
+                <h2>📊 إحصائيات سريعة</h2>
+                <select id="statsClass" onchange="loadStats()">
+                    <option value="">-- اختر الفصل --</option>
+                </select>
+                <div id="statsContainer" style="margin-top:15px;"></div>
             </div>
         </div>
     </div>
